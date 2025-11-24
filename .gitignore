@@ -38,6 +38,8 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+server/**/*.js
+server/**/*.js.map
 
 # Misc
 .eslintcache

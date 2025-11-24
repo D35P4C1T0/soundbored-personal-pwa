@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -30,6 +30,7 @@ import {
   getHistory,
   toggleFavorite as toggleFavoriteStorage,
 } from './services/storage';
+import { HISTORY_REFRESH_INTERVAL_MS } from './constants';
 
 function App() {
   const { sounds, loading, error, playSound } = useSounds();
@@ -48,33 +49,36 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       setHistory(getHistory());
-    }, 5000);
+    }, HISTORY_REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
 
-  const handleToggleFavorite = (id: number) => {
+  const handleToggleFavorite = useCallback((id: number) => {
     toggleFavoriteStorage(id);
     setFavorites(getFavorites());
-  };
+  }, []);
 
-  const handleToggleTag = (tag: string) => {
+  const handleToggleTag = useCallback((tag: string) => {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
-  };
+  }, []);
 
-  const handlePlay = async (id: number) => {
-    await playSound(id);
-    setHistory(getHistory());
-  };
-
-  // Filter sounds based on search and tags
-  const filteredSounds = filterByTags(
-    fuzzySearch(searchQuery, sounds),
-    selectedTags
+  const handlePlay = useCallback(
+    async (id: number) => {
+      await playSound(id);
+      setHistory(getHistory());
+    },
+    [playSound]
   );
 
-  const allTags = getAllTags(sounds);
+  // Filter sounds based on search and tags
+  const filteredSounds = useMemo(
+    () => filterByTags(fuzzySearch(searchQuery, sounds), selectedTags),
+    [searchQuery, sounds, selectedTags]
+  );
+
+  const allTags = useMemo(() => getAllTags(sounds), [sounds]);
 
   if (loading) {
     return (

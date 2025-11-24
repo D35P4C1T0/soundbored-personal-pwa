@@ -1,7 +1,7 @@
 export interface Sound {
   id: number;
   filename: string;
-  tags?: string[];
+  tags?: readonly string[];
 }
 
 export interface HistoryEntry {

@@ -57,12 +57,15 @@ export const fuzzySearch = (query: string, sounds: Sound[]): Sound[] => {
   });
 };
 
-export const filterByTags = (sounds: Sound[], selectedTags: string[]): Sound[] => {
+export const filterByTags = (
+  sounds: Sound[],
+  selectedTags: readonly string[]
+): Sound[] => {
   if (selectedTags.length === 0) return sounds;
-  
-  return sounds.filter(sound => {
+
+  return sounds.filter((sound) => {
     if (!sound.tags) return false;
-    return selectedTags.some(tag => sound.tags!.includes(tag));
+    return selectedTags.some((tag) => sound.tags!.includes(tag));
   });
 };
 

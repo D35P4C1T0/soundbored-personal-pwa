@@ -5,6 +5,8 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json ./
+COPY tsconfig.json ./
+COPY tsconfig.node.json ./
 
 # Install dependencies using npm (avoids external pnpm download)
 RUN npm ci || npm install
@@ -14,6 +16,9 @@ COPY . .
 
 # Build the frontend
 RUN npm run build
+
+# Compile TypeScript server code
+RUN npx tsc --project tsconfig.node.json
 
 # Production stage
 FROM node:20-alpine
@@ -29,8 +34,8 @@ RUN npm ci --omit=dev || npm install --omit=dev
 # Copy built frontend from builder stage
 COPY --from=builder /app/dist ./dist
 
-# Copy server code
-COPY server ./server
+# Copy compiled server code
+COPY --from=builder /app/server ./server
 
 # Expose port
 EXPOSE 3000

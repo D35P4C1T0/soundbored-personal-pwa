@@ -47,16 +47,24 @@ docker run -d \
 
 ### Prerequisites
 - Node.js 18+ installed
-- pnpm (recommended - `npm install -g pnpm`)
+- npm, pnpm, or yarn (pnpm recommended - `npm install -g pnpm`)
 - Access to a Soundbored API instance
 
 ### Setup
 
 1. **Install dependencies**:
    ```bash
-   cd pwa
+   # Using pnpm (recommended)
    pnpm install
+   
+   # OR using npm
+   npm install
+   
+   # OR using yarn
+   yarn install
    ```
+   
+   > **Note**: After the recent improvements, new dependencies were added (TypeScript types, tsx for running TypeScript server). Make sure to run install to get all dependencies.
 
 2. **Create `.env` file**:
    ```bash
@@ -75,14 +83,20 @@ docker run -d \
    **Terminal 1** - Frontend dev server:
    ```bash
    pnpm run dev
+   # OR: npm run dev
    ```
+   This starts Vite dev server on `http://localhost:5173`
 
-   **Terminal 2** - Backend proxy server:
+   **Terminal 2** - Backend proxy server (TypeScript):
    ```bash
    pnpm run server:dev
+   # OR: npm run server:dev
    ```
+   This starts the Express server with TypeScript support and auto-reload on `http://localhost:3000`
 
 5. **Open the app**: Navigate to `http://localhost:5173`
+
+> **Important**: The server is now written in TypeScript and uses `tsx` to run. The `server:dev` script automatically watches for changes and reloads.
 
 ## 🎨 Customization
 
@@ -127,12 +141,18 @@ const theme = extendTheme({
 ```bash
 # Development
 pnpm run dev              # Start Vite dev server (port 5173)
-pnpm run server:dev       # Start backend proxy with auto-reload
+pnpm run server:dev       # Start backend proxy with auto-reload (TypeScript)
+pnpm run server           # Start production server (TypeScript)
+
+# Code Quality (NEW!)
+pnpm run lint             # Run ESLint to check code quality
+pnpm run format           # Format code with Prettier
+pnpm run format:check     # Check if code is formatted correctly
+pnpm run type-check       # Check TypeScript types without building
 
 # Production Build
 pnpm run build            # Build frontend for production
 pnpm run preview          # Preview production build locally
-pnpm run server           # Start production server
 
 # Docker
 docker-compose up -d     # Start container
@@ -140,6 +160,8 @@ docker-compose down      # Stop container
 docker-compose logs -f   # View logs
 docker-compose restart   # Restart container
 ```
+
+> **Note**: Replace `pnpm` with `npm` or `yarn` if you're using those package managers.
 
 ## 🐛 Troubleshooting
 
@@ -153,6 +175,8 @@ docker-compose restart   # Restart container
 - Make sure port 3000 is not already in use
 - Check `.env` file exists and has required variables
 - For development, make sure you're running both `pnpm run dev` AND `pnpm run server:dev`
+- **NEW**: If you see TypeScript errors, make sure all dependencies are installed: `pnpm install`
+- The server now uses TypeScript - ensure `tsx` is installed (it's in devDependencies)
 
 ### Sounds play but no audio
 - This is expected! The PWA sends play commands to your Discord bot
@@ -166,8 +190,14 @@ docker-compose restart   # Restart container
 
 ### Icons not showing
 - Generate proper icon files (see `public/ICONS.md`)
-- Rebuild the app: `npm run build`
+- Rebuild the app: `pnpm run build`
 - Clear browser cache and reload
+
+### TypeScript/ESLint errors
+- Run `pnpm install` to ensure all dependencies are installed
+- Check that Node.js version is 18+
+- Run `pnpm run type-check` to see TypeScript errors
+- Run `pnpm run lint` to see ESLint errors
 
 ## 🎯 Usage Tips
 

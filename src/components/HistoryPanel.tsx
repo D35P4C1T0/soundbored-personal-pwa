@@ -1,6 +1,7 @@
 import { Box, Heading, SimpleGrid, Text } from '@chakra-ui/react';
 import { Sound, HistoryEntry } from '../types';
 import { SoundTile } from './SoundTile';
+import { DISPLAY_HISTORY_LIMIT } from '../constants';
 
 interface HistoryPanelProps {
   sounds: Sound[];
@@ -20,7 +21,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
   const historySounds = history
     .map((h) => sounds.find((s) => s.id === h.id))
     .filter((s): s is Sound => s !== undefined)
-    .slice(0, 12); // Show last 12 played
+    .slice(0, DISPLAY_HISTORY_LIMIT);
 
   if (historySounds.length === 0) {
     return (

@@ -1,6 +1,5 @@
 import { StorageData, HistoryEntry, Settings } from '../types';
-
-const STORAGE_KEY = 'soundbored-data';
+import { STORAGE_KEY, MAX_HISTORY_ENTRIES } from '../constants';
 
 const getDefaultData = (): StorageData => ({
   favorites: [],
@@ -48,11 +47,11 @@ export const isFavorite = (id: number): boolean => {
 export const addToHistory = (id: number): void => {
   const data = loadData();
   // Remove if already exists
-  data.history = data.history.filter(h => h.id !== id);
+  data.history = data.history.filter((h) => h.id !== id);
   // Add to beginning
   data.history.unshift({ id, timestamp: Date.now() });
-  // Keep only last 50
-  data.history = data.history.slice(0, 50);
+  // Keep only last MAX_HISTORY_ENTRIES
+  data.history = data.history.slice(0, MAX_HISTORY_ENTRIES);
   saveData(data);
 };
 

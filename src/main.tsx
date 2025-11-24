@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ChakraProvider, extendTheme } from '@chakra-ui/react';
 import App from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const theme = extendTheme({
   config: {
@@ -20,18 +21,14 @@ const theme = extendTheme({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ChakraProvider theme={theme}>
-      <App />
-    </ChakraProvider>
+    <ErrorBoundary>
+      <ChakraProvider theme={theme}>
+        <App />
+      </ChakraProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
 
-// Register service worker for PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Service worker registration failed, not critical
-    });
-  });
-}
+// Service worker is automatically registered by vite-plugin-pwa
+// No manual registration needed
 

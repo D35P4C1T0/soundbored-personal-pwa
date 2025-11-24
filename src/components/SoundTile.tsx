@@ -1,6 +1,12 @@
 import { Box, Text, IconButton, useToast } from '@chakra-ui/react';
 import { FaStar, FaRegStar } from 'react-icons/fa';
+import { memo, useCallback } from 'react';
 import { Sound } from '../types';
+import {
+  TOAST_DURATION_SUCCESS,
+  TOAST_DURATION_ERROR,
+  MAX_TAGS_DISPLAY,
+} from '../constants';
 
 interface SoundTileProps {
   sound: Sound;
@@ -9,7 +15,7 @@ interface SoundTileProps {
   onToggleFavorite: (id: number) => void;
 }
 
-export const SoundTile: React.FC<SoundTileProps> = ({
+export const SoundTile: React.FC<SoundTileProps> = memo(({
   sound,
   isFavorite,
   onPlay,
@@ -17,14 +23,14 @@ export const SoundTile: React.FC<SoundTileProps> = ({
 }) => {
   const toast = useToast();
 
-  const handlePlay = async () => {
+  const handlePlay = useCallback(async () => {
     try {
       await onPlay(sound.id);
       toast({
         title: 'Playing',
         description: sound.filename,
         status: 'success',
-        duration: 2000,
+        duration: TOAST_DURATION_SUCCESS,
         isClosable: true,
       });
     } catch (error) {
@@ -32,16 +38,16 @@ export const SoundTile: React.FC<SoundTileProps> = ({
         title: 'Error',
         description: 'Failed to play sound',
         status: 'error',
-        duration: 3000,
+        duration: TOAST_DURATION_ERROR,
         isClosable: true,
       });
     }
-  };
+  }, [sound.id, sound.filename, onPlay, toast]);
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  const handleFavoriteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     onToggleFavorite(sound.id);
-  };
+  }, [sound.id, onToggleFavorite]);
 
   return (
     <Box
@@ -51,6 +57,15 @@ export const SoundTile: React.FC<SoundTileProps> = ({
       p={4}
       cursor="pointer"
       onClick={handlePlay}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handlePlay();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Play sound: ${sound.filename}`}
       transition="all 0.2s"
       _hover={{
         bg: 'gray.600',
@@ -59,13 +74,20 @@ export const SoundTile: React.FC<SoundTileProps> = ({
       _active={{
         transform: 'scale(0.98)',
       }}
+      _focus={{
+        outline: '2px solid',
+        outlineColor: 'blue.500',
+        outlineOffset: '2px',
+      }}
       minH="80px"
       display="flex"
       flexDirection="column"
       justifyContent="center"
     >
       <IconButton
-        aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        aria-label={
+          isFavorite ? 'Remove from favorites' : 'Add to favorites'
+        }
         icon={isFavorite ? <FaStar /> : <FaRegStar />}
         size="sm"
         position="absolute"
@@ -74,6 +96,7 @@ export const SoundTile: React.FC<SoundTileProps> = ({
         colorScheme={isFavorite ? 'yellow' : 'gray'}
         variant="ghost"
         onClick={handleFavoriteClick}
+        tabIndex={0}
       />
       
       <Text
@@ -88,7 +111,7 @@ export const SoundTile: React.FC<SoundTileProps> = ({
       
       {sound.tags && sound.tags.length > 0 && (
         <Box mt={2} display="flex" flexWrap="wrap" gap={1}>
-          {sound.tags.slice(0, 3).map((tag) => (
+          {sound.tags.slice(0, MAX_TAGS_DISPLAY).map((tag) => (
             <Text
               key={tag}
               fontSize="xs"
@@ -101,14 +124,16 @@ export const SoundTile: React.FC<SoundTileProps> = ({
               {tag}
             </Text>
           ))}
-          {sound.tags.length > 3 && (
+          {sound.tags.length > MAX_TAGS_DISPLAY && (
             <Text fontSize="xs" color="gray.400">
-              +{sound.tags.length - 3}
+              +{sound.tags.length - MAX_TAGS_DISPLAY}
             </Text>
           )}
         </Box>
       )}
     </Box>
   );
-};
+});
+
+SoundTile.displayName = 'SoundTile';
 
