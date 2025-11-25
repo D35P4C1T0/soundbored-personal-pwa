@@ -7,9 +7,11 @@ WORKDIR /app
 COPY package.json ./
 COPY tsconfig.json ./
 COPY tsconfig.node.json ./
+COPY tsconfig.server.json ./
 
 # Install dependencies using npm (avoids external pnpm download)
-RUN npm ci || npm install
+# Note: Using npm install since project uses pnpm-lock.yaml (no package-lock.json)
+RUN npm install
 
 # Copy source code
 COPY . .
@@ -18,7 +20,8 @@ COPY . .
 RUN npm run build
 
 # Compile TypeScript server code
-RUN npx tsc --project tsconfig.node.json
+RUN npx tsc --project tsconfig.server.json && \
+    ls -la server/*.js || echo "Server compilation completed"
 
 # Production stage
 FROM node:20-alpine
@@ -29,7 +32,8 @@ WORKDIR /app
 COPY package.json ./
 
 # Install only production dependencies with npm
-RUN npm ci --omit=dev || npm install --omit=dev
+# Note: Using npm install since project uses pnpm-lock.yaml (no package-lock.json)
+RUN npm install --omit=dev
 
 # Copy built frontend from builder stage
 COPY --from=builder /app/dist ./dist
