@@ -5,6 +5,7 @@
     "moduleResolution": "node",
     "lib": ["ES2020"],
     "outDir": "./",
+    "rootDir": "./",
     "noEmit": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
@@ -12,9 +13,10 @@
     "skipLibCheck": true,
     "strict": true,
     "declaration": false,
-    "sourceMap": false
+    "sourceMap": false,
+    "removeComments": true
   },
   "include": ["server/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src"]
+  "exclude": ["node_modules", "dist", "src", "**/*.test.ts", "**/*.spec.ts"]
 }
 
