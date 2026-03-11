@@ -1,22 +1,23 @@
 export interface Sound {
-  id: number;
-  filename: string;
-  tags?: readonly string[];
+  readonly id: number;
+  readonly filename: string;
+  readonly sourceType: 'local' | 'url' | string;
+  readonly url: string | null;
+  readonly volume: number | null;
+  readonly description: string | null;
+  readonly tags: readonly string[];
+  readonly isJoinSound: boolean;
+  readonly isLeaveSound: boolean;
+  readonly insertedAt: string | null;
+  readonly updatedAt: string | null;
 }
 
 export interface HistoryEntry {
-  id: number;
-  timestamp: number;
+  readonly id: number;
+  readonly timestamp: number;
 }
 
-export interface Settings {
-  gridColumns?: number;
-  tileSize?: string;
+export interface LibraryStorageData {
+  readonly favorites: readonly number[];
+  readonly history: readonly HistoryEntry[];
 }
-
-export interface StorageData {
-  favorites: number[];
-  history: HistoryEntry[];
-  settings: Settings;
-}
-

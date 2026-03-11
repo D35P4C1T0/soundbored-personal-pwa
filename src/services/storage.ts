@@ -1,78 +1,130 @@
-import { StorageData, HistoryEntry, Settings } from '../types';
-import { STORAGE_KEY, MAX_HISTORY_ENTRIES } from '../constants';
+import { MAX_HISTORY_ENTRIES, STORAGE_KEY } from '../constants';
+import { HistoryEntry, LibraryStorageData } from '../types';
 
-const getDefaultData = (): StorageData => ({
+type UnknownRecord = Record<string, unknown>;
+
+const EMPTY_STORAGE: LibraryStorageData = {
   favorites: [],
   history: [],
-  settings: {}
-});
+};
 
-export const loadData = (): StorageData => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return getDefaultData();
-    return { ...getDefaultData(), ...JSON.parse(stored) };
-  } catch {
-    return getDefaultData();
+const isRecord = (value: unknown): value is UnknownRecord =>
+  typeof value === 'object' && value !== null;
+
+const isPositiveInteger = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isInteger(value) && value > 0;
+
+const assertSoundId = (value: number): void => {
+  if (!isPositiveInteger(value)) {
+    throw new Error('Invalid sound id');
   }
 };
 
-export const saveData = (data: StorageData): void => {
+const isHistoryEntry = (value: unknown): value is HistoryEntry =>
+  isRecord(value) &&
+  isPositiveInteger(value.id) &&
+  typeof value.timestamp === 'number' &&
+  Number.isFinite(value.timestamp);
+
+const dedupeNumbers = (values: readonly number[]): number[] => [...new Set(values)];
+
+const sanitizeFavorites = (value: unknown): number[] =>
+  Array.isArray(value) ? dedupeNumbers(value.filter(isPositiveInteger)) : [];
+
+const sanitizeHistory = (value: unknown): HistoryEntry[] =>
+  Array.isArray(value)
+    ? value
+        .filter(isHistoryEntry)
+        .sort((left, right) => right.timestamp - left.timestamp)
+        .slice(0, MAX_HISTORY_ENTRIES)
+    : [];
+
+const sanitizeStorageData = (value: unknown): LibraryStorageData => {
+  if (!isRecord(value)) {
+    return EMPTY_STORAGE;
+  }
+
+  return {
+    favorites: sanitizeFavorites(value.favorites),
+    history: sanitizeHistory(value.history),
+  };
+};
+
+const getStorage = (): Storage | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.localStorage;
+};
+
+const writeStorage = (data: LibraryStorageData): void => {
+  const storage = getStorage();
+
+  if (!storage) {
+    return;
+  }
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    storage.setItem(STORAGE_KEY, JSON.stringify(data));
   } catch (error) {
-    console.error('Failed to save data:', error);
+    console.error('Failed to persist library storage', error);
   }
 };
 
-export const toggleFavorite = (id: number): boolean => {
-  const data = loadData();
-  const index = data.favorites.indexOf(id);
-  if (index > -1) {
-    data.favorites.splice(index, 1);
-    saveData(data);
-    return false;
-  } else {
-    data.favorites.push(id);
-    saveData(data);
-    return true;
+export const readStorage = (): LibraryStorageData => {
+  const storage = getStorage();
+
+  if (!storage) {
+    return EMPTY_STORAGE;
+  }
+
+  try {
+    const rawValue = storage.getItem(STORAGE_KEY);
+    return rawValue ? sanitizeStorageData(JSON.parse(rawValue)) : EMPTY_STORAGE;
+  } catch {
+    return EMPTY_STORAGE;
   }
 };
 
-export const isFavorite = (id: number): boolean => {
-  const data = loadData();
-  return data.favorites.includes(id);
+const updateStorage = (
+  updater: (current: LibraryStorageData) => LibraryStorageData
+): LibraryStorageData => {
+  const nextValue = updater(readStorage());
+  writeStorage(nextValue);
+  return nextValue;
 };
 
-export const addToHistory = (id: number): void => {
-  const data = loadData();
-  // Remove if already exists
-  data.history = data.history.filter((h) => h.id !== id);
-  // Add to beginning
-  data.history.unshift({ id, timestamp: Date.now() });
-  // Keep only last MAX_HISTORY_ENTRIES
-  data.history = data.history.slice(0, MAX_HISTORY_ENTRIES);
-  saveData(data);
-};
+export const toggleFavorite = (id: number): LibraryStorageData =>
+  updateStorage((current) => {
+    assertSoundId(id);
 
-export const getHistory = (): HistoryEntry[] => {
-  const data = loadData();
-  return data.history;
-};
+    const favorites = current.favorites.includes(id)
+      ? current.favorites.filter((favoriteId) => favoriteId !== id)
+      : [...current.favorites, id];
 
-export const getFavorites = (): number[] => {
-  const data = loadData();
-  return data.favorites;
-};
+    return {
+      ...current,
+      favorites,
+    };
+  });
 
-export const getSettings = (): Settings => {
-  const data = loadData();
-  return data.settings;
-};
+export const recordPlay = (id: number): LibraryStorageData =>
+  updateStorage((current) => {
+    assertSoundId(id);
 
-export const saveSettings = (settings: Settings): void => {
-  const data = loadData();
-  data.settings = { ...data.settings, ...settings };
-  saveData(data);
-};
+    const nextEntry: HistoryEntry = {
+      id,
+      timestamp: Date.now(),
+    };
 
+    const history = [nextEntry, ...current.history.filter((entry) => entry.id !== id)].slice(
+      0,
+      MAX_HISTORY_ENTRIES
+    );
+
+    return {
+      ...current,
+      history,
+    };
+  });

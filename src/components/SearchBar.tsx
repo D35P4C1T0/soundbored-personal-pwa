@@ -1,18 +1,18 @@
+import { memo } from 'react';
 import { Input, InputGroup, InputLeftElement } from '@chakra-ui/react';
 import { FaSearch } from 'react-icons/fa';
-import { memo } from 'react';
 
 interface SearchBarProps {
-  value: string;
+  readonly value: string;
   onChange: (value: string) => void;
-  placeholder?: string;
+  readonly placeholder?: string;
 }
 
-export const SearchBar: React.FC<SearchBarProps> = memo(({
+export const SearchBar = memo(function SearchBar({
   value,
   onChange,
   placeholder = 'Search sounds...',
-}) => {
+}: SearchBarProps) {
   return (
     <InputGroup size="lg">
       <InputLeftElement pointerEvents="none">
@@ -20,21 +20,15 @@ export const SearchBar: React.FC<SearchBarProps> = memo(({
       </InputLeftElement>
       <Input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        bg="gray.700"
-        border="none"
-        color="white"
         aria-label="Search sounds"
+        border="none"
+        bg="gray.700"
+        color="white"
         _placeholder={{ color: 'gray.400' }}
-        _focus={{
-          bg: 'gray.600',
-          boxShadow: 'outline',
-        }}
+        _focus={{ bg: 'gray.600', boxShadow: 'outline' }}
       />
     </InputGroup>
   );
 });
-
-SearchBar.displayName = 'SearchBar';
-

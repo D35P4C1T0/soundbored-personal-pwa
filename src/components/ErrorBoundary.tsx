@@ -1,66 +1,67 @@
 import { Component, ReactNode } from 'react';
-import { Box, Container, Heading, Text, Button, Alert, AlertIcon } from '@chakra-ui/react';
+import { Alert, AlertIcon, Box, Button, Container, Heading, Text } from '@chakra-ui/react';
 
-interface Props {
-  children: ReactNode;
+interface ErrorBoundaryProps {
+  readonly children: ReactNode;
 }
 
-interface State {
-  hasError: boolean;
-  error: Error | null;
+interface ErrorBoundaryState {
+  readonly error: Error | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { error: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  public componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    console.error('Unhandled UI error', error, errorInfo);
   }
 
-  handleReset = () => {
-    this.setState({ hasError: false, error: null });
+  private readonly handleReset = (): void => {
+    this.setState({ error: null });
     window.location.reload();
   };
 
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Box minH="100vh" bg="gray.800" p={4}>
-          <Container maxW="container.md" pt={8}>
-            <Alert
-              status="error"
-              variant="subtle"
-              flexDirection="column"
-              alignItems="center"
-              justifyContent="center"
-              textAlign="center"
-              height="300px"
-              borderRadius="lg"
-            >
-              <AlertIcon boxSize="40px" mr={0} />
-              <Heading mt={4} mb={2} fontSize="xl">
-                Something went wrong
-              </Heading>
-              <Text maxWidth="sm" mb={4}>
-                {this.state.error?.message || 'An unexpected error occurred'}
-              </Text>
-              <Button colorScheme="red" onClick={this.handleReset}>
-                Reload Page
-              </Button>
-            </Alert>
-          </Container>
-        </Box>
-      );
+  public render(): ReactNode {
+    const { error } = this.state;
+
+    if (!error) {
+      return this.props.children;
     }
 
-    return this.props.children;
+    return (
+      <Box minH="100vh" bg="gray.800" p={4}>
+        <Container maxW="container.md" pt={8}>
+          <Alert
+            status="error"
+            variant="subtle"
+            display="flex"
+            height="300px"
+            flexDirection="column"
+            alignItems="center"
+            justifyContent="center"
+            borderRadius="lg"
+            textAlign="center"
+          >
+            <AlertIcon boxSize="40px" mr={0} />
+            <Heading mt={4} mb={2} fontSize="xl">
+              Something went wrong
+            </Heading>
+            <Text mb={4} maxW="sm">
+              {error.message || 'An unexpected error occurred'}
+            </Text>
+            <Button colorScheme="red" onClick={this.handleReset}>
+              Reload page
+            </Button>
+          </Alert>
+        </Container>
+      </Box>
+    );
   }
 }
-

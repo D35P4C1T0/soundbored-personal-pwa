@@ -1,79 +1,102 @@
 import { Sound } from '../types';
 
-export const fuzzySearch = (query: string, sounds: Sound[]): Sound[] => {
-  if (!query) return sounds;
-  
-  const lowerQuery = query.toLowerCase();
-  
-  // Check if search starts with a quote for exact matching
-  const isExactMatch = query.startsWith('"');
-  
-  if (isExactMatch) {
-    // Remove quotes
-    let exactQuery = query.slice(1);
-    if (exactQuery.endsWith('"')) {
-      exactQuery = exactQuery.slice(0, -1);
-    }
-    exactQuery = exactQuery.toLowerCase();
-    
-    return sounds.filter(sound => {
-      const searchableText = sound.filename.toLowerCase();
-      // Escape special regex characters
-      const escapedQuery = exactQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Match at start of string or after space/punctuation
-      const wordBoundaryRegex = new RegExp(`(^|\\s|[^a-zA-Z0-9])${escapedQuery}`, 'i');
-      return wordBoundaryRegex.test(searchableText);
-    });
-  }
-  
-  // Simple fuzzy search implementation
-  return sounds.filter(sound => {
-    const searchableText = `${sound.filename} ${sound.tags?.join(' ') || ''}`.toLowerCase();
-    
-    // Check if all characters of query appear in order
-    let textIndex = 0;
-    for (let i = 0; i < lowerQuery.length; i++) {
-      const char = lowerQuery[i];
-      const foundIndex = searchableText.indexOf(char, textIndex);
-      if (foundIndex === -1) return false;
-      textIndex = foundIndex + 1;
-    }
-    return true;
-  }).sort((a, b) => {
-    // Prioritize exact matches at start
-    const aText = a.filename.toLowerCase();
-    const bText = b.filename.toLowerCase();
-    const aStarts = aText.startsWith(lowerQuery);
-    const bStarts = bText.startsWith(lowerQuery);
-    if (aStarts && !bStarts) return -1;
-    if (!aStarts && bStarts) return 1;
-    // Then by includes
-    const aIncludes = aText.includes(lowerQuery);
-    const bIncludes = bText.includes(lowerQuery);
-    if (aIncludes && !bIncludes) return -1;
-    if (!aIncludes && bIncludes) return 1;
-    // Finally alphabetically
-    return aText.localeCompare(bText);
-  });
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const normalize = (value: string): string => value.trim().toLowerCase();
+
+const matchesExactQuery = (sound: Sound, query: string): boolean => {
+  const pattern = new RegExp(`(^|\\s|[^a-z0-9])${escapeRegExp(query)}`, 'i');
+  return pattern.test(sound.filename.toLowerCase());
 };
 
-export const filterByTags = (
-  sounds: Sound[],
+const matchesFuzzyQuery = (candidate: string, query: string): boolean => {
+  let candidateIndex = 0;
+
+  for (const character of query) {
+    const nextIndex = candidate.indexOf(character, candidateIndex);
+
+    if (nextIndex === -1) {
+      return false;
+    }
+
+    candidateIndex = nextIndex + 1;
+  }
+
+  return true;
+};
+
+const getSearchableText = (sound: Sound): string =>
+  `${sound.filename} ${sound.tags.join(' ')}`.toLowerCase();
+
+const compareSearchRank = (left: Sound, right: Sound, query: string): number => {
+  const normalizedQuery = normalize(query);
+  const leftName = left.filename.toLowerCase();
+  const rightName = right.filename.toLowerCase();
+
+  const leftStartsWith = leftName.startsWith(normalizedQuery);
+  const rightStartsWith = rightName.startsWith(normalizedQuery);
+
+  if (leftStartsWith !== rightStartsWith) {
+    return leftStartsWith ? -1 : 1;
+  }
+
+  const leftIncludes = leftName.includes(normalizedQuery);
+  const rightIncludes = rightName.includes(normalizedQuery);
+
+  if (leftIncludes !== rightIncludes) {
+    return leftIncludes ? -1 : 1;
+  }
+
+  return leftName.localeCompare(rightName);
+};
+
+const stripExactQuerySyntax = (query: string): string => {
+  const trimmedQuery = query.trim();
+
+  if (!trimmedQuery.startsWith('"')) {
+    return trimmedQuery;
+  }
+
+  const unwrappedQuery = trimmedQuery.slice(1);
+  return unwrappedQuery.endsWith('"') ? unwrappedQuery.slice(0, -1) : unwrappedQuery;
+};
+
+export const filterSounds = (
+  sounds: readonly Sound[],
+  query: string,
   selectedTags: readonly string[]
 ): Sound[] => {
-  if (selectedTags.length === 0) return sounds;
+  const normalizedQuery = normalize(query);
+  const exactQuery = normalize(stripExactQuerySyntax(query));
+  const isExactQuery = query.trim().startsWith('"');
 
-  return sounds.filter((sound) => {
-    if (!sound.tags) return false;
-    return selectedTags.some((tag) => sound.tags!.includes(tag));
-  });
+  return sounds
+    .filter((sound) => {
+      if (selectedTags.length > 0 && !selectedTags.some((tag) => sound.tags.includes(tag))) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      if (isExactQuery) {
+        return exactQuery.length > 0 && matchesExactQuery(sound, exactQuery);
+      }
+
+      return matchesFuzzyQuery(getSearchableText(sound), normalizedQuery);
+    })
+    .sort((left, right) => compareSearchRank(left, right, query));
 };
 
-export const getAllTags = (sounds: Sound[]): string[] => {
-  const tagSet = new Set<string>();
-  sounds.forEach(sound => {
-    sound.tags?.forEach(tag => tagSet.add(tag));
-  });
-  return Array.from(tagSet).sort();
-};
+export const getAllTags = (sounds: readonly Sound[]): string[] => {
+  const tags = new Set<string>();
 
+  for (const sound of sounds) {
+    for (const tag of sound.tags) {
+      tags.add(tag);
+    }
+  }
+
+  return [...tags].sort();
+};

@@ -1,25 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { theme } from './theme';
 
-const theme = extendTheme({
-  config: {
-    initialColorMode: 'dark',
-    useSystemColorMode: false,
-  },
-  styles: {
-    global: {
-      body: {
-        bg: 'gray.800',
-        color: 'white',
-      },
-    },
-  },
-});
+const rootElement = document.getElementById('root');
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+if (!(rootElement instanceof HTMLElement)) {
+  throw new Error('Application root element not found');
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ErrorBoundary>
       <ChakraProvider theme={theme}>
@@ -28,7 +20,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </React.StrictMode>
 );
-
-// Service worker is automatically registered by vite-plugin-pwa
-// No manual registration needed
-

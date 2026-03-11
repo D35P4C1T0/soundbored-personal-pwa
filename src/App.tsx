@@ -1,138 +1,68 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useCallback } from 'react';
 import {
   Box,
   Container,
   Heading,
-  VStack,
-  SimpleGrid,
-  Tabs,
-  TabList,
-  TabPanels,
   Tab,
+  TabList,
   TabPanel,
-  Spinner,
+  TabPanels,
+  Tabs,
   Text,
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-  Button,
+  VStack,
 } from '@chakra-ui/react';
-import { SearchBar } from './components/SearchBar';
 import { CategoryFilter } from './components/CategoryFilter';
-import { SoundTile } from './components/SoundTile';
-import { FavoritesPanel } from './components/FavoritesPanel';
-import { HistoryPanel } from './components/HistoryPanel';
+import { ErrorScreen, LoadingScreen } from './components/StatusScreen';
+import { SearchBar } from './components/SearchBar';
+import { SoundGrid } from './components/SoundGrid';
+import { useLibraryState } from './hooks/useLibraryState';
 import { useSounds } from './hooks/useSounds';
-import { fuzzySearch, filterByTags, getAllTags } from './utils/search';
-import {
-  getFavorites,
-  getHistory,
-  toggleFavorite as toggleFavoriteStorage,
-} from './services/storage';
-import { HISTORY_REFRESH_INTERVAL_MS } from './constants';
 
 function App() {
-  const { sounds, loading, error, playSound } = useSounds();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [history, setHistory] = useState<ReturnType<typeof getHistory>>([]);
-
-  // Load favorites and history from storage
-  useEffect(() => {
-    setFavorites(getFavorites());
-    setHistory(getHistory());
-  }, []);
-
-  // Refresh history periodically
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHistory(getHistory());
-    }, HISTORY_REFRESH_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleToggleFavorite = useCallback((id: number) => {
-    toggleFavoriteStorage(id);
-    setFavorites(getFavorites());
-  }, []);
-
-  const handleToggleTag = useCallback((tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  }, []);
+  const { sounds, status, errorMessage, playSound, reload } = useSounds();
+  const {
+    favorites,
+    favoriteSounds,
+    historySounds,
+    recordPlayback,
+    searchQuery,
+    selectedTags,
+    setSearchQuery,
+    tags,
+    toggleFavorite,
+    toggleTag,
+    visibleSounds,
+  } = useLibraryState(sounds);
 
   const handlePlay = useCallback(
     async (id: number) => {
       await playSound(id);
-      setHistory(getHistory());
+      recordPlayback(id);
     },
-    [playSound]
+    [playSound, recordPlayback]
   );
 
-  // Filter sounds based on search and tags
-  const filteredSounds = useMemo(
-    () => filterByTags(fuzzySearch(searchQuery, sounds), selectedTags),
-    [searchQuery, sounds, selectedTags]
-  );
-
-  const allTags = useMemo(() => getAllTags(sounds), [sounds]);
-
-  if (loading) {
-    return (
-      <Box
-        minH="100vh"
-        bg="gray.800"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <VStack spacing={4}>
-          <Spinner size="xl" color="blue.500" thickness="4px" />
-          <Text color="white" fontSize="lg">
-            Loading sounds...
-          </Text>
-        </VStack>
-      </Box>
-    );
+  if (status === 'loading') {
+    return <LoadingScreen message="Loading sounds..." />;
   }
 
-  if (error) {
+  if (status === 'error' && errorMessage) {
     return (
-      <Box minH="100vh" bg="gray.800" p={4}>
-        <Container maxW="container.md" pt={8}>
-          <Alert
-            status="error"
-            variant="subtle"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            textAlign="center"
-            height="200px"
-            borderRadius="lg"
-          >
-            <AlertIcon boxSize="40px" mr={0} />
-            <AlertTitle mt={4} mb={1} fontSize="lg">
-              Failed to load sounds
-            </AlertTitle>
-            <AlertDescription maxWidth="sm">{error}</AlertDescription>
-            <Button mt={4} colorScheme="red" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-          </Alert>
-        </Container>
-      </Box>
+      <ErrorScreen
+        title="Failed to load sounds"
+        message={errorMessage}
+        actionLabel="Retry"
+        onAction={() => void reload()}
+      />
     );
   }
 
   return (
     <Box minH="100vh" bg="gray.800" pb={8}>
-      <Container maxW="container.xl" pt={4} px={4}>
+      <Container maxW="container.xl" px={4} pt={4}>
         <VStack spacing={4} align="stretch">
-          <Heading color="white" size="xl" textAlign="center">
-            🎵 Soundbored
+          <Heading size="xl" textAlign="center" color="white">
+            Soundbored
           </Heading>
 
           <Tabs colorScheme="blue" variant="enclosed">
@@ -144,12 +74,11 @@ function App() {
                 Favorites ({favorites.length})
               </Tab>
               <Tab color="gray.300" _selected={{ color: 'white', bg: 'gray.700' }}>
-                History
+                History ({historySounds.length})
               </Tab>
             </TabList>
 
             <TabPanels>
-              {/* All Sounds Tab */}
               <TabPanel>
                 <VStack spacing={4} align="stretch">
                   <SearchBar
@@ -158,58 +87,43 @@ function App() {
                     placeholder='Search sounds... (use "quotes" for exact match)'
                   />
 
-                  {allTags.length > 0 && (
-                    <CategoryFilter
-                      tags={allTags}
-                      selectedTags={selectedTags}
-                      onToggleTag={handleToggleTag}
-                    />
-                  )}
+                  <CategoryFilter
+                    tags={tags}
+                    selectedTags={selectedTags}
+                    onToggleTag={toggleTag}
+                  />
 
-                  <Text color="gray.400" fontSize="sm">
-                    Showing {filteredSounds.length} of {sounds.length} sounds
+                  <Text fontSize="sm" color="gray.400">
+                    Showing {visibleSounds.length} of {sounds.length} sounds
                   </Text>
 
-                  {filteredSounds.length === 0 ? (
-                    <Box textAlign="center" py={8}>
-                      <Text color="gray.400" fontSize="lg">
-                        No sounds found
-                      </Text>
-                    </Box>
-                  ) : (
-                    <SimpleGrid columns={[2, 3, 4, 6]} spacing={3}>
-                      {filteredSounds.map((sound) => (
-                        <SoundTile
-                          key={sound.id}
-                          sound={sound}
-                          isFavorite={favorites.includes(sound.id)}
-                          onPlay={handlePlay}
-                          onToggleFavorite={handleToggleFavorite}
-                        />
-                      ))}
-                    </SimpleGrid>
-                  )}
+                  <SoundGrid
+                    sounds={visibleSounds}
+                    favorites={favorites}
+                    emptyMessage="No sounds found."
+                    onPlay={handlePlay}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 </VStack>
               </TabPanel>
 
-              {/* Favorites Tab */}
               <TabPanel>
-                <FavoritesPanel
-                  sounds={sounds}
+                <SoundGrid
+                  sounds={favoriteSounds}
                   favorites={favorites}
+                  emptyMessage="No favorites yet. Star a sound to keep it handy."
                   onPlay={handlePlay}
-                  onToggleFavorite={handleToggleFavorite}
+                  onToggleFavorite={toggleFavorite}
                 />
               </TabPanel>
 
-              {/* History Tab */}
               <TabPanel>
-                <HistoryPanel
-                  sounds={sounds}
-                  history={history}
+                <SoundGrid
+                  sounds={historySounds}
                   favorites={favorites}
+                  emptyMessage="No history yet. Play a sound to populate this list."
                   onPlay={handlePlay}
-                  onToggleFavorite={handleToggleFavorite}
+                  onToggleFavorite={toggleFavorite}
                 />
               </TabPanel>
             </TabPanels>
@@ -221,4 +135,3 @@ function App() {
 }
 
 export default App;
-

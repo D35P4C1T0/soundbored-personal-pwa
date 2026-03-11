@@ -1,44 +1,78 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { fetchSounds, playSound as requestPlaySound } from '../services/api';
 import { Sound } from '../types';
-import { fetchSounds, playSound as apiPlaySound } from '../services/api';
-import { addToHistory } from '../services/storage';
 
-export const useSounds = () => {
-  const [sounds, setSounds] = useState<Sound[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  useEffect(() => {
-    const loadSounds = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchSounds();
-        setSounds(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load sounds');
-      } finally {
-        setLoading(false);
-      }
+type SoundsState =
+  | {
+      readonly status: 'loading';
+      readonly sounds: readonly Sound[];
+      readonly errorMessage: null;
+    }
+  | {
+      readonly status: 'ready';
+      readonly sounds: readonly Sound[];
+      readonly errorMessage: null;
+    }
+  | {
+      readonly status: 'error';
+      readonly sounds: readonly Sound[];
+      readonly errorMessage: string;
     };
 
-    loadSounds();
-  }, []);
-
-  const playSound = async (id: number) => {
-    try {
-      setIsPlaying(true);
-      await apiPlaySound(id);
-      addToHistory(id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to play sound');
-      throw err;
-    } finally {
-      setIsPlaying(false);
-    }
-  };
-
-  return { sounds, loading, error, isPlaying, playSound };
+const LOADING_STATE: SoundsState = {
+  status: 'loading',
+  sounds: [],
+  errorMessage: null,
 };
 
+export interface UseSoundsResult {
+  readonly sounds: readonly Sound[];
+  readonly status: SoundsState['status'];
+  readonly errorMessage: string | null;
+  reload: () => Promise<void>;
+  playSound: (id: number) => Promise<void>;
+}
+
+export const useSounds = (): UseSoundsResult => {
+  const [state, setState] = useState<SoundsState>(LOADING_STATE);
+
+  const reload = useCallback(async () => {
+    setState((current) => ({
+      status: 'loading',
+      sounds: current.sounds,
+      errorMessage: null,
+    }));
+
+    try {
+      const sounds = await fetchSounds();
+
+      setState({
+        status: 'ready',
+        sounds,
+        errorMessage: null,
+      });
+    } catch (error) {
+      setState((current) => ({
+        status: 'error',
+        sounds: current.sounds,
+        errorMessage: error instanceof Error ? error.message : 'Failed to load sounds',
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const playSound = useCallback(async (id: number) => {
+    await requestPlaySound(id);
+  }, []);
+
+  return {
+    sounds: state.sounds,
+    status: state.status,
+    errorMessage: state.errorMessage,
+    reload,
+    playSound,
+  };
+};
