@@ -12,8 +12,8 @@ const normalizeApiUrl = (value: string): string => {
 const parsePort = (value: string | undefined): number => {
   const parsedPort = Number.parseInt(value ?? '3000', 10);
 
-  if (!Number.isInteger(parsedPort) || parsedPort <= 0) {
-    throw new Error('PORT must be a positive integer');
+  if (!Number.isInteger(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {
+    throw new Error('PORT must be an integer between 1 and 65535');
   }
 
   return parsedPort;
@@ -25,7 +25,13 @@ const parseApiUrl = (value: string | undefined): string => {
   }
 
   try {
-    return normalizeApiUrl(new URL(value).toString());
+    const url = new URL(value);
+
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error();
+    }
+
+    return normalizeApiUrl(url.toString());
   } catch {
     throw new Error('SOUNDBORED_API_URL must be a valid URL');
   }

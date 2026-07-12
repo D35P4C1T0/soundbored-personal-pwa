@@ -1,5 +1,4 @@
 import express, { Request, Response } from 'express';
-import cors from 'cors';
 import { join } from 'path';
 import { EnvConfig } from './config';
 import { requestSoundbored, sendProxyBody, sendProxyFailure } from './proxy';
@@ -12,8 +11,13 @@ const parseSoundId = (value: string): number | null => {
 export const createApp = (config: EnvConfig, distPath: string) => {
   const app = express();
 
-  app.use(cors());
-  app.use(express.json());
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Frame-Options', 'DENY');
+    next();
+  });
   app.use(express.static(distPath));
 
   app.get('/api/sounds', async (_req: Request, res: Response) => {

@@ -1,16 +1,4 @@
-import { useCallback } from 'react';
-import {
-  Box,
-  Container,
-  Heading,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-  Text,
-  VStack,
-} from '@chakra-ui/react';
+import { useCallback, useState } from 'react';
 import { CategoryFilter } from './components/CategoryFilter';
 import { ErrorScreen, LoadingScreen } from './components/StatusScreen';
 import { SearchBar } from './components/SearchBar';
@@ -18,119 +6,59 @@ import { SoundGrid } from './components/SoundGrid';
 import { useLibraryState } from './hooks/useLibraryState';
 import { useSounds } from './hooks/useSounds';
 
+type View = 'all' | 'favorites' | 'history';
+
 function App() {
+  const [view, setView] = useState<View>('all');
   const { sounds, status, errorMessage, playSound, reload } = useSounds();
-  const {
-    favorites,
-    favoriteSounds,
-    historySounds,
-    recordPlayback,
-    searchQuery,
-    selectedTags,
-    setSearchQuery,
-    tags,
-    toggleFavorite,
-    toggleTag,
-    visibleSounds,
-  } = useLibraryState(sounds);
+  const library = useLibraryState(sounds);
 
-  const handlePlay = useCallback(
-    async (id: number) => {
-      await playSound(id);
-      recordPlayback(id);
-    },
-    [playSound, recordPlayback]
-  );
+  const handlePlay = useCallback(async (id: number) => {
+    await playSound(id);
+    library.recordPlayback(id);
+  }, [library.recordPlayback, playSound]);
 
-  if (status === 'loading') {
-    return <LoadingScreen message="Loading sounds..." />;
-  }
-
+  if (status === 'loading') return <LoadingScreen message="Loading sounds…" />;
   if (status === 'error' && errorMessage) {
-    return (
-      <ErrorScreen
-        title="Failed to load sounds"
-        message={errorMessage}
-        actionLabel="Retry"
-        onAction={() => void reload()}
-      />
-    );
+    return <ErrorScreen title="Couldn’t load sounds" message={errorMessage} actionLabel="Try again" onAction={() => void reload()} />;
   }
+
+  const views: { id: View; label: string; count: number }[] = [
+    { id: 'all', label: 'Sounds', count: sounds.length },
+    { id: 'favorites', label: 'Favorites', count: library.favorites.length },
+    { id: 'history', label: 'Recent', count: library.historySounds.length },
+  ];
 
   return (
-    <Box minH="100vh" bg="gray.800" pb={8}>
-      <Container maxW="container.xl" px={4} pt={4}>
-        <VStack spacing={4} align="stretch">
-          <Heading size="xl" textAlign="center" color="white">
-            Soundbored
-          </Heading>
+    <main className="shell">
+      <header className="hero">
+        <div>
+          <p className="eyebrow">PERSONAL SOUNDBOARD</p>
+          <h1>Soundbored</h1>
+          <p className="subtitle">Find it. Tap it. Play it.</p>
+        </div>
+        <span className="status"><i /> Connected</span>
+      </header>
 
-          <Tabs colorScheme="blue" variant="enclosed">
-            <TabList>
-              <Tab color="gray.300" _selected={{ color: 'white', bg: 'gray.700' }}>
-                All Sounds ({sounds.length})
-              </Tab>
-              <Tab color="gray.300" _selected={{ color: 'white', bg: 'gray.700' }}>
-                Favorites ({favorites.length})
-              </Tab>
-              <Tab color="gray.300" _selected={{ color: 'white', bg: 'gray.700' }}>
-                History ({historySounds.length})
-              </Tab>
-            </TabList>
+      <nav className="tabs" aria-label="Library views">
+        {views.map((item) => (
+          <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>
+            {item.label}<span>{item.count}</span>
+          </button>
+        ))}
+      </nav>
 
-            <TabPanels>
-              <TabPanel>
-                <VStack spacing={4} align="stretch">
-                  <SearchBar
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder='Search sounds... (use "quotes" for exact match)'
-                  />
-
-                  <CategoryFilter
-                    tags={tags}
-                    selectedTags={selectedTags}
-                    onToggleTag={toggleTag}
-                  />
-
-                  <Text fontSize="sm" color="gray.400">
-                    Showing {visibleSounds.length} of {sounds.length} sounds
-                  </Text>
-
-                  <SoundGrid
-                    sounds={visibleSounds}
-                    favorites={favorites}
-                    emptyMessage="No sounds found."
-                    onPlay={handlePlay}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                </VStack>
-              </TabPanel>
-
-              <TabPanel>
-                <SoundGrid
-                  sounds={favoriteSounds}
-                  favorites={favorites}
-                  emptyMessage="No favorites yet. Star a sound to keep it handy."
-                  onPlay={handlePlay}
-                  onToggleFavorite={toggleFavorite}
-                />
-              </TabPanel>
-
-              <TabPanel>
-                <SoundGrid
-                  sounds={historySounds}
-                  favorites={favorites}
-                  emptyMessage="No history yet. Play a sound to populate this list."
-                  onPlay={handlePlay}
-                  onToggleFavorite={toggleFavorite}
-                />
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
-        </VStack>
-      </Container>
-    </Box>
+      {view === 'all' && (
+        <section className="library">
+          <SearchBar value={library.searchQuery} onChange={library.setSearchQuery} />
+          <CategoryFilter tags={library.tags} selectedTags={library.selectedTags} onToggleTag={library.toggleTag} />
+          <p className="result-count">{library.visibleSounds.length} {library.visibleSounds.length === 1 ? 'sound' : 'sounds'}</p>
+          <SoundGrid sounds={library.visibleSounds} favorites={library.favorites} emptyMessage="No sounds match those filters." onPlay={handlePlay} onToggleFavorite={library.toggleFavorite} />
+        </section>
+      )}
+      {view === 'favorites' && <SoundGrid sounds={library.favoriteSounds} favorites={library.favorites} emptyMessage="No favorites yet. Star sounds to keep them close." onPlay={handlePlay} onToggleFavorite={library.toggleFavorite} />}
+      {view === 'history' && <SoundGrid sounds={library.historySounds} favorites={library.favorites} emptyMessage="Nothing played yet." onPlay={handlePlay} onToggleFavorite={library.toggleFavorite} />}
+    </main>
   );
 }
 
