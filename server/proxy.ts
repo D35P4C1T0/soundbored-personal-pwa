@@ -54,6 +54,7 @@ export const requestSoundbored = async (
       'Content-Type': 'application/json',
       ...(init.headers ?? {}),
     },
+    signal: AbortSignal.timeout(10_000),
   });
 
   return {

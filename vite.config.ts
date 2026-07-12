@@ -7,33 +7,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'Soundbored',
         short_name: 'Soundbored',
         description: 'Soundboard Discord Bot Controller',
-        theme_color: '#1a202c',
-        background_color: '#1a202c',
+        theme_color: '#0c0e13',
+        background_color: '#0c0e13',
         display: 'standalone',
         orientation: 'portrait',
-        icons: [
-          {
-            src: '/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
@@ -45,7 +26,7 @@ export default defineConfig({
               cacheName: 'api-sounds',
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 300 // 5 minutes
+                maxAgeSeconds: 300,
               }
             }
           }
@@ -63,4 +44,3 @@ export default defineConfig({
     },
   },
 });
-

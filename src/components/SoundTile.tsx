@@ -1,7 +1,5 @@
-import { memo, useCallback } from 'react';
-import { Box, IconButton, Text, useToast } from '@chakra-ui/react';
-import { FaRegStar, FaStar } from 'react-icons/fa';
-import { MAX_TAGS_DISPLAY, TOAST_DURATION_MS } from '../constants';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { MAX_TAGS_DISPLAY } from '../constants';
 import { Sound } from '../types';
 
 interface SoundTileProps {
@@ -11,125 +9,89 @@ interface SoundTileProps {
   onToggleFavorite: (id: number) => void;
 }
 
+type PlayState =
+  | { readonly status: 'idle' | 'playing'; readonly message: null }
+  | { readonly status: 'error'; readonly message: string };
+
+const IDLE_STATE: PlayState = { status: 'idle', message: null };
+
 export const SoundTile = memo(function SoundTile({
   sound,
   isFavorite,
   onPlay,
   onToggleFavorite,
 }: SoundTileProps) {
-  const toast = useToast();
+  const [playState, setPlayState] = useState<PlayState>(IDLE_STATE);
+  const resetTimer = useRef<number>();
+
+  useEffect(() => () => window.clearTimeout(resetTimer.current), []);
+
+  const resetLater = useCallback((delay: number) => {
+    window.clearTimeout(resetTimer.current);
+    resetTimer.current = window.setTimeout(() => setPlayState(IDLE_STATE), delay);
+  }, []);
 
   const handlePlay = useCallback(async () => {
+    if (playState.status === 'playing') return;
+
+    setPlayState({ status: 'playing', message: null });
+
     try {
       await onPlay(sound.id);
-      toast({
-        title: 'Playing',
-        description: sound.filename,
-        status: 'success',
-        duration: TOAST_DURATION_MS.success,
-        isClosable: true,
-      });
+      resetLater(650);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to play sound',
+      setPlayState({
         status: 'error',
-        duration: TOAST_DURATION_MS.error,
-        isClosable: true,
+        message: error instanceof Error ? error.message : 'Could not play this sound',
       });
+      resetLater(3000);
     }
-  }, [onPlay, sound.filename, sound.id, toast]);
+  }, [onPlay, playState.status, resetLater, sound.id]);
 
-  const handleFavoriteClick = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      onToggleFavorite(sound.id);
-    },
-    [onToggleFavorite, sound.id]
-  );
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter' && event.key !== ' ') {
-        return;
-      }
-
-      event.preventDefault();
-      void handlePlay();
-    },
-    [handlePlay]
-  );
+  const hiddenTagCount = sound.tags.length - MAX_TAGS_DISPLAY;
 
   return (
-    <Box
-      position="relative"
-      display="flex"
-      minH="96px"
-      cursor="pointer"
-      flexDirection="column"
-      justifyContent="center"
-      borderRadius="lg"
-      bg="gray.700"
-      p={4}
-      role="button"
-      tabIndex={0}
-      aria-label={`Play sound: ${sound.filename}`}
-      onClick={() => void handlePlay()}
-      onKeyDown={handleKeyDown}
-      transition="all 0.2s"
-      _hover={{ bg: 'gray.600', transform: 'scale(1.02)' }}
-      _active={{ transform: 'scale(0.98)' }}
-      _focusVisible={{
-        outline: '2px solid',
-        outlineColor: 'blue.400',
-        outlineOffset: '2px',
-      }}
-    >
-      <IconButton
-        aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-        icon={isFavorite ? <FaStar /> : <FaRegStar />}
-        size="sm"
-        position="absolute"
-        top={2}
-        right={2}
-        variant="ghost"
-        colorScheme={isFavorite ? 'yellow' : 'gray'}
-        onClick={handleFavoriteClick}
-      />
-
-      <Text pr={8} fontSize="md" fontWeight="bold" color="white" noOfLines={2}>
-        {sound.filename}
-      </Text>
-
-      {sound.description ? (
-        <Text mt={1} pr={8} fontSize="sm" color="gray.300" noOfLines={2}>
-          {sound.description}
-        </Text>
-      ) : null}
-
-      {sound.tags.length > 0 ? (
-        <Box mt={2} display="flex" flexWrap="wrap" gap={1}>
-          {sound.tags.slice(0, MAX_TAGS_DISPLAY).map((tag) => (
-            <Text
-              key={tag}
-              borderRadius="full"
-              bg="blue.600"
-              px={2}
-              py={0.5}
-              fontSize="xs"
-              color="white"
-            >
-              {tag}
-            </Text>
-          ))}
-
-          {sound.tags.length > MAX_TAGS_DISPLAY ? (
-            <Text fontSize="xs" color="gray.400">
-              +{sound.tags.length - MAX_TAGS_DISPLAY}
-            </Text>
-          ) : null}
-        </Box>
-      ) : null}
-    </Box>
+    <article className={`sound-card ${playState.status}`}>
+      <button
+        className="play"
+        onClick={() => void handlePlay()}
+        disabled={playState.status === 'playing'}
+        aria-label={`Play ${sound.filename}`}
+      >
+        <span className="play-icon" aria-hidden="true">
+          {playState.status === 'playing' ? '■' : playState.status === 'error' ? '!' : '▶'}
+        </span>
+        <span className="sound-copy">
+          <strong>{sound.filename}</strong>
+          {playState.status === 'error' ? (
+            <small className="play-error" role="alert">
+              {playState.message}
+            </small>
+          ) : (
+            sound.description && <small>{sound.description}</small>
+          )}
+          {!!sound.tags.length && (
+            <span className="tags">
+              {sound.tags.slice(0, MAX_TAGS_DISPLAY).map((tag) => (
+                <em key={tag}>{tag}</em>
+              ))}
+              {hiddenTagCount > 0 && <em>+{hiddenTagCount}</em>}
+            </span>
+          )}
+        </span>
+      </button>
+      <button
+        className={`favorite ${isFavorite ? 'saved' : ''}`}
+        onClick={() => onToggleFavorite(sound.id)}
+        aria-label={
+          isFavorite
+            ? `Remove ${sound.filename} from favorites`
+            : `Add ${sound.filename} to favorites`
+        }
+        aria-pressed={isFavorite}
+      >
+        {isFavorite ? '★' : '☆'}
+      </button>
+    </article>
   );
 });
