@@ -27,13 +27,13 @@ export const SoundTile = memo(function SoundTile({
   useEffect(() => () => window.clearTimeout(resetTimer.current), []);
 
   const resetLater = useCallback((delay: number) => {
-    window.clearTimeout(resetTimer.current);
     resetTimer.current = window.setTimeout(() => setPlayState(IDLE_STATE), delay);
   }, []);
 
   const handlePlay = useCallback(async () => {
     if (playState.status === 'playing') return;
 
+    window.clearTimeout(resetTimer.current);
     setPlayState({ status: 'playing', message: null });
 
     try {

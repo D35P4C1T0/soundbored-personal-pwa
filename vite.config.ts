@@ -1,6 +1,8 @@
+import 'dotenv/config';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { parsePort } from './server/config';
 
 export default defineConfig({
   plugins: [
@@ -15,12 +17,16 @@ export default defineConfig({
         background_color: '#0c0e13',
         display: 'standalone',
         orientation: 'portrait',
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /^\/api\/sounds$/,
+            urlPattern: ({ url }) => url.origin === self.location.origin && url.pathname === '/api/sounds',
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-sounds',
@@ -38,7 +44,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: `http://127.0.0.1:${parsePort(process.env.PORT)}`,
         changeOrigin: true,
       },
     },

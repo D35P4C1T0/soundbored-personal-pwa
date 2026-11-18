@@ -4,23 +4,10 @@ import { readStorage, recordPlay, toggleFavorite } from '../services/storage';
 import { HistoryEntry, Sound } from '../types';
 import { filterSounds, getAllTags } from '../utils/search';
 
-interface LibrarySnapshot {
-  readonly favorites: readonly number[];
-  readonly history: readonly HistoryEntry[];
-}
-
-const readSnapshot = (): LibrarySnapshot => {
-  const storage = readStorage();
-
-  return {
-    favorites: storage.favorites,
-    history: storage.history,
-  };
-};
-
 export interface UseLibraryStateResult {
   readonly favorites: readonly number[];
   readonly history: readonly HistoryEntry[];
+  readonly sessionOnly: boolean;
   readonly searchQuery: string;
   readonly visibleSounds: readonly Sound[];
   readonly favoriteSounds: readonly Sound[];
@@ -34,7 +21,7 @@ export interface UseLibraryStateResult {
 }
 
 export const useLibraryState = (sounds: readonly Sound[]): UseLibraryStateResult => {
-  const [snapshot, setSnapshot] = useState<LibrarySnapshot>(() => readSnapshot());
+  const [snapshot, setSnapshot] = useState(readStorage);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -48,7 +35,7 @@ export const useLibraryState = (sounds: readonly Sound[]): UseLibraryStateResult
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === null || event.key === STORAGE_KEY) {
-        setSnapshot(readSnapshot());
+        setSnapshot(readStorage());
       }
     };
 
@@ -92,6 +79,7 @@ export const useLibraryState = (sounds: readonly Sound[]): UseLibraryStateResult
   return {
     favorites: snapshot.favorites,
     history: snapshot.history,
+    sessionOnly: snapshot.sessionOnly,
     searchQuery,
     visibleSounds,
     favoriteSounds,

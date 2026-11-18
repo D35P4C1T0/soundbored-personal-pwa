@@ -2,11 +2,13 @@ import { MAX_HISTORY_ENTRIES, STORAGE_KEY } from '../constants';
 import { HistoryEntry, LibraryStorageData } from '../types';
 
 type UnknownRecord = Record<string, unknown>;
+type LibrarySnapshot = LibraryStorageData & { readonly sessionOnly: boolean };
 
 const EMPTY_STORAGE: LibraryStorageData = {
   favorites: [],
   history: [],
 };
+let snapshot: LibrarySnapshot = { ...EMPTY_STORAGE, sessionOnly: false };
 
 const isRecord = (value: unknown): value is UnknownRecord =>
   typeof value === 'object' && value !== null;
@@ -50,52 +52,46 @@ const sanitizeStorageData = (value: unknown): LibraryStorageData => {
   };
 };
 
-const getStorage = (): Storage | null => {
-  if (typeof window === 'undefined') {
-    return null;
+export const readStorage = (): LibrarySnapshot => {
+  if (snapshot.sessionOnly || typeof window === 'undefined') {
+    return snapshot;
   }
 
-  return window.localStorage;
-};
-
-const writeStorage = (data: LibraryStorageData): void => {
-  const storage = getStorage();
-
-  if (!storage) {
-    return;
-  }
-
+  let rawValue: string | null;
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.error('Failed to persist library storage', error);
-  }
-};
-
-export const readStorage = (): LibraryStorageData => {
-  const storage = getStorage();
-
-  if (!storage) {
-    return EMPTY_STORAGE;
-  }
-
-  try {
-    const rawValue = storage.getItem(STORAGE_KEY);
-    return rawValue ? sanitizeStorageData(JSON.parse(rawValue)) : EMPTY_STORAGE;
+    rawValue = window.localStorage.getItem(STORAGE_KEY);
   } catch {
-    return EMPTY_STORAGE;
+    snapshot = { ...snapshot, sessionOnly: true };
+    return snapshot;
   }
+
+  try {
+    const data = sanitizeStorageData(JSON.parse(rawValue || 'null'));
+    snapshot = { ...data, sessionOnly: false };
+  } catch {
+    snapshot = { ...EMPTY_STORAGE, sessionOnly: false };
+  }
+  return snapshot;
 };
 
 const updateStorage = (
   updater: (current: LibraryStorageData) => LibraryStorageData
-): LibraryStorageData => {
-  const nextValue = updater(readStorage());
-  writeStorage(nextValue);
-  return nextValue;
+): LibrarySnapshot => {
+  const current = readStorage();
+  const data = updater(current);
+  snapshot = { ...data, sessionOnly: current.sessionOnly };
+
+  if (!snapshot.sessionOnly && typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      snapshot = { ...data, sessionOnly: true };
+    }
+  }
+  return snapshot;
 };
 
-export const toggleFavorite = (id: number): LibraryStorageData =>
+export const toggleFavorite = (id: number): LibrarySnapshot =>
   updateStorage((current) => {
     assertSoundId(id);
 
@@ -109,7 +105,7 @@ export const toggleFavorite = (id: number): LibraryStorageData =>
     };
   });
 
-export const recordPlay = (id: number): LibraryStorageData =>
+export const recordPlay = (id: number): LibrarySnapshot =>
   updateStorage((current) => {
     assertSoundId(id);
 

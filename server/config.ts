@@ -9,7 +9,7 @@ const normalizeApiUrl = (value: string): string => {
   return trimmedValue.endsWith('/api') ? trimmedValue : `${trimmedValue}/api`;
 };
 
-const parsePort = (value: string | undefined): number => {
+export const parsePort = (value: string | undefined): number => {
   const parsedPort = Number.parseInt(value ?? '3000', 10);
 
   if (!Number.isInteger(parsedPort) || parsedPort <= 0 || parsedPort > 65535) {

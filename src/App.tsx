@@ -40,6 +40,10 @@ function App() {
         <span className="status"><i /> Connected</span>
       </header>
 
+      <div role="status">
+        {library.sessionOnly && <p className="subtitle">Favorites and recent plays are available until you reload this page.</p>}
+      </div>
+
       <nav className="tabs" aria-label="Library views">
         {views.map((item) => (
           <button key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>

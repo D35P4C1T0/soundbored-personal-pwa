@@ -19,6 +19,8 @@ PORT=3000
 
 `SOUNDBORED_API_URL` accepts either the site URL or the `/api` URL. The proxy normalizes both.
 
+For a multi-guild Soundbored server, use the upstream host for the intended soundboard, such as `https://my-board.soundbored.app`. The token’s Discord user must belong to that guild. Requests to the main host use Soundbored’s default guild. A browser URL ending in `/g/<slug>` is for the upstream web UI, so use the guild subdomain for API calls.
+
 ## Local Development
 
 1. Install dependencies: `pnpm install`

@@ -1,12 +1,10 @@
 # PWA Icons
 
-This directory should contain the following icon files for the PWA:
+The PWA manifest uses `icon-192.png` and `icon-512.png`.
 
-## Required Icons
+## Optional Icons
 
 - `favicon.ico` - Standard browser favicon (32x32 or 16x16)
-- `icon-192.png` - Android icon (192x192)
-- `icon-512.png` - Android icon (512x512)
 - `apple-touch-icon.png` - iOS icon (180x180)
 - `mask-icon.svg` - Safari pinned tab icon
 
